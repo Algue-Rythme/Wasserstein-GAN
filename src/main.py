@@ -16,7 +16,7 @@ def print_model(model):
     model.summary()
     from keras.utils import plot_model
     plot_model(model,
-               to_file='../figures/%s.png' % model.name,
+               to_file='figures/%s.png' % model.name,
                show_shapes=True,
                show_layer_names=True)
 

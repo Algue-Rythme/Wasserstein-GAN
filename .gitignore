@@ -2,3 +2,4 @@ report/*
 !report/*.pdf
 !report/*.bib
 !report/*.tex
+figures/*

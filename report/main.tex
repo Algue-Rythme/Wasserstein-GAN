@@ -26,10 +26,10 @@
 \usepackage[linesnumbered, ruled, vlined]{algorithm2e}
 \usepackage{algorithmic}
 
-\titleformat{\chapter}[display]
-   {\setcounter{section}{0}
-    \normalfont \huge \bfseries \centering}
-   {Part \thechapter}{20pt}{\Huge}
+\titleformat{\chapter}
+  {\normalfont\LARGE\bfseries}{\thechapter}{1em}{}
+\titlespacing*{\chapter}{0pt}{3.5ex plus 1ex minus .2ex}{2.3ex plus .2ex}
+
 
 \begin{document}
 
@@ -40,9 +40,7 @@
  {\Large \bfseries Machine Learning Project \\}
  \vspace{2cm}
  {\large ENS de Lyon, Spring 2018 \\}
- % ----------------------------------------------------------------
  \vspace{2cm}
-
 {\Large \urlstyle{same} \color{black}
 	\href{mailto:louis.bethune@ens-lyon.fr}{louis.bethune@ens-lyon.fr}\\
     \vspace{0.2cm}
@@ -50,22 +48,37 @@
 	\vspace{0.2cm}
 	\href{mailto:leonard.assouline@ens-lyon.fr}{leonard.assouline@ens-lyon.fr}\\
 }
-
 \vspace{2cm}
-
 \vfill
 \end{center}
 \end{titlepage}
 
+
+
+
 \setcounter{tocdepth}{1}
 \tableofcontents
 
-\chapter{Bla}
+
+
+
+
+\chapter*{Introduction}
 
 \lipsum
 
-\chapter{Foo}
+\chapter{Theory of Generative Adversarial Networks}
 
+\section{Generative Adversarial Networks}
+\lipsum[1]
+
+\section{The problem of learning}
+\lipsum[1]
+
+\section{Wassertein GAN}
+\lipsum[1]
+
+\chapter{Applications}
 \lipsum
 
 
