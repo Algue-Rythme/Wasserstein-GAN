@@ -12,7 +12,7 @@ from keras.layers.pooling import GlobalAveragePooling2D
 def wassertein_distance(y_true, y_pred):
     return K.mean(y_true * y_pred)
 
-def print_model(model):
+def visualize_model(model):
     model.summary()
     from keras.utils import plot_model
     plot_model(model,
@@ -20,19 +20,22 @@ def print_model(model):
                show_shapes=True,
                show_layer_names=True)
 
-def mlp_generator(noise_dim, data_dim):
-    model = Sequential()
+def mlp_generator(noise_dim, data_dim, name='mlp_generator'):
+    model = Sequential(name=name)
     model.add(Dense(128, input_dim=noise_dim, activation='tanh'))
     model.add(Dense(128, activation='tanh'))
     model.add(Dense(data_dim, activation='linear'))
     return model
 
 model = mlp_generator(5, 2)
-print_model(model)
+visualize_model(model)
 
-def mlp_discriminator(data_dim):
-    model = Sequential()
+def mlp_discriminator(data_dim, name='mpl_discriminator'):
+    model = Sequential(name=name)
     model.add(Dense(128, input_dim=data_dim, activation='tanh'))
     model.add(Dense(128, activation='tanh'))
     model.add(Dense(1, activation='linear'))
     return model
+
+dis = mlp_discriminator(2)
+visualize_model(dis)
