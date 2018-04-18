@@ -1,0 +1,6 @@
+report/*aux
+report/*.log
+report/*.out
+report/*.lof
+report/*.gz
+report/*.toc
