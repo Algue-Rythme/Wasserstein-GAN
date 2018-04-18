@@ -1,0 +1,71 @@
+\documentclass[a4paper]{report}
+
+%% Language and font encodings
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{pdflscape}
+\usepackage{xspace}
+\usepackage[table,xcdraw]{xcolor}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{titlesec}
+\usepackage{lipsum}
+
+%% Sets page size and margins
+\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+
+%% Useful packages
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage[linesnumbered, ruled, vlined]{algorithm2e}
+\usepackage{algorithmic}
+
+\titleformat{\chapter}[display]
+   {\setcounter{section}{0}
+    \normalfont \huge \bfseries \centering}
+   {Part \thechapter}{20pt}{\Huge}
+
+\begin{document}
+
+\begin{titlepage}
+\begin{center}
+ {\Huge\bfseries Wassertein Generative Adversarial Networks (WGAN)\\}
+ \vspace{2cm}
+ {\Large \bfseries Machine Learning Project \\}
+ \vspace{2cm}
+ {\large ENS de Lyon, Spring 2018 \\}
+ % ----------------------------------------------------------------
+ \vspace{2cm}
+
+{\Large \urlstyle{same} \color{black}
+	\href{mailto:louis.bethune@ens-lyon.fr}{louis.bethune@ens-lyon.fr}\\
+    \vspace{0.2cm}
+	\href{mailto:guillaume.coiffier@ens-lyon.fr}{guillaume.coiffier@ens-lyon.fr}\\
+	\vspace{0.2cm}
+	\href{mailto:leonard.assouline@ens-lyon.fr}{leonard.assouline@ens-lyon.fr}\\
+}
+
+\vspace{2cm}
+
+\vfill
+\end{center}
+\end{titlepage}
+
+\setcounter{tocdepth}{1}
+\tableofcontents
+
+\chapter{Bla}
+
+\lipsum
+
+\chapter{Foo}
+
+\lipsum
+
+\end{document}
