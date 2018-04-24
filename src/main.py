@@ -32,6 +32,22 @@ def visualize_model(model):
                show_shapes=True,
                show_layer_names=True)
 
+def batch_real_distribution(batchSize, i_batch, data_dim):
+    """
+    Real distribution is a normal law of mean 8 and standard deviation 1
+    """
+    return np.random.normal(8, 1, (batchSize, data_dim))
+
+def get_noise(noise_dim, batchSize):
+    """
+    Noise is a centered reduced normal law
+    """
+    return np.random.normal(0, 1, (batchSize,) + noise_dim)
+
+def batch_generated_distribution(generator, batchSize, noise_dim):
+     noise = get_noise(noise_dim, batchSize)
+     return generator.predict(noise)
+
 def mlp_generator(noise_dim, data_dim, name='mlp_generator'):
     """
     Simple model that generates output of dimension
@@ -39,8 +55,8 @@ def mlp_generator(noise_dim, data_dim, name='mlp_generator'):
     """
 
     model = Sequential(name=name)
-    model.add(Dense(128, input_shape=noise_dim, activation='tanh'))
-    model.add(Dense(128, activation='tanh'))
+    model.add(Dense(128, input_shape=noise_dim, activation='relu'))
+    model.add(Dense(128, activation='relu'))
     model.add(Dense(data_dim, activation='linear'))
     return model
 
@@ -75,16 +91,6 @@ def clip_weights(critic, min_value, max_value):
         weights = [np.clip(w, min_value, max_value) for w in weights]
         layer.set_weights(weights)
 
-def batch_real_distribution(batchSize, i_batch, data_dim):
-    return np.random.normal(4, 2, (batchSize, data_dim))
-
-def get_noise(noise_dim, batchSize):
-    return np.random.normal(0, 1, (batchSize,) + noise_dim)
-
-def batch_generated_distribution(generator, batchSize, noise_dim):
-     noise = get_noise(noise_dim, batchSize)
-     return generator.predict(noise)
-
 def train_wgan(generator, critic, noise_dim, data_dim, nbEpochs, nbBatchPerEpochs, batchSize, eta_critic):
     epoch_size = nbBatchPerEpochs * batchSize
     GAN = get_GAN(generator, critic, noise_dim, data_dim)
@@ -99,7 +105,7 @@ def train_wgan(generator, critic, noise_dim, data_dim, nbEpochs, nbBatchPerEpoch
         for i_batch in range(nbBatchPerEpochs):
             list_critic_real_loss, list_critic_gen_loss = [], []
             for i_critic in range(eta_critic):
-                clip_weights(critic, -0.01, 0.01)
+                clip_weights(critic, -0.1, 0.1)
                 real_batch = batch_real_distribution(batchSize, i_batch, data_dim)
                 gen_batch = batch_generated_distribution(generator, batchSize, noise_dim)
                 critic_real_loss = critic.train_on_batch(real_batch, -np.ones(real_batch.shape[0]))
@@ -120,24 +126,29 @@ def train_wgan(generator, critic, noise_dim, data_dim, nbEpochs, nbBatchPerEpoch
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description='Train model')
-    parser.add_argument('--train', action='store_true', help="run training phase")
-    parser.add_argument('--noise_dim', default=(10,), type=tuple, help="TODO")
-    parser.add_argument('--data_dim', default=10, type=int, help="TODO")
-    parser.add_argument('--nb_epoch', default=2, type=int, help="Number of epochs")
-    parser.add_argument('--batch_size', default=32, type=int, help='Batch size')
-    parser.add_argument('--n_batch_per_epoch', default=300, type=int, help="Number of batch per epochs")
+    parser.add_argument('--train','-t', action='store_true', help="run training phase")
+    parser.add_argument('--noise_dim', '-nd', default=10, type=int, help="TODO")
+    parser.add_argument('--data_dim', '-dd', default=10, type=int, help="TODO")
+    parser.add_argument('--nb_epoch', '-n', default=10, type=int, help="Number of epochs")
+    parser.add_argument('--batch_size', '-b', default=32, type=int, help='Batch size')
+    parser.add_argument('--n_batch_per_epoch', '-nb', default=500, type=int, help="Number of batch per epochs")
     parser.add_argument('--eta_critic', default=5, type=int, help="TODO")
     args = parser.parse_args()
 
-    noise_dim = (10,)
-    data_dim = 10
+    noise_dim = (args.noise_dim,)
     param_filename = "param"
-    generator = mlp_generator(noise_dim, data_dim)
+    generator = mlp_generator(noise_dim, args.data_dim)
     if args.train or not os.path.exists(param_filename):
-        critic = mlp_critic(data_dim)
-        train_wgan(generator, critic, args.noise_dim, args.data_dim, args.nb_epoch, args.n_batch_per_epoch, args.batch_size, args.eta_critic)
+        critic = mlp_critic(args.data_dim)
+        train_wgan(generator, critic, noise_dim, args.data_dim, args.nb_epoch, args.n_batch_per_epoch, args.batch_size, args.eta_critic)
     else:
         generator.load_weights(param_filename)
     generator.summary()
-    generator.predict()
     generator.save_weights(param_filename)
+
+    entry = get_noise(noise_dim, 1000)
+    output = generator.predict(entry)
+    print(np.mean(output), np.std(output))
+    plt.hist(entry.reshape(noise_dim[0]*1000))
+    plt.hist(output.reshape(noise_dim[0]*1000))
+    plt.show()
