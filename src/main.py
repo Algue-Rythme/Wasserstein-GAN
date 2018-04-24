@@ -1,4 +1,13 @@
+#! /usr/bin/env python3
+# coding: utf-8
+
 import numpy as np
+import os
+import sys
+import argparse
+import matplotlib.pyplot as plt
+import time
+
 import keras.backend as K
 from keras.models import Model, Sequential
 from keras.layers import Input
@@ -10,7 +19,6 @@ from keras.layers.convolutional import Conv2D, Deconv2D, UpSampling2D
 from keras.layers.pooling import GlobalAveragePooling2D
 from keras.optimizers import RMSprop
 from keras.utils import Progbar
-import time
 
 def wassertein_distance(y_true, y_pred):
     return K.mean(y_true * y_pred)
@@ -36,7 +44,7 @@ def mlp_generator(noise_dim, data_dim, name='mlp_generator'):
     model.add(Dense(data_dim, activation='linear'))
     return model
 
-def mlp_critic(data_dim, name='mpl_critic'):
+def mlp_critic(data_dim, name='mlp_critic'):
     """ 
     The critic is the discriminator, that takes a Tensor of dimension data_dim
     output either +1 (res. -1) if the example is fake (res. real)
@@ -60,6 +68,7 @@ def get_GAN(generator, critic, noise_dim, data_dim):
 def clip_weights(critic, min_value, max_value):
     """ 
     Clipping the weight is the heart of this algorithm
+    -> back to a case where our weights lay in a compact
     """
     for layer in critic.layers:
         weights = layer.get_weights()
@@ -78,7 +87,7 @@ def batch_generated_distribution(generator, batchSize, noise_dim):
 
 def train_wgan(generator, critic, noise_dim, data_dim, nbEpochs, nbBatchPerEpochs, batchSize, eta_critic):
     epoch_size = nbBatchPerEpochs * batchSize
-    GAN = get_GAN(generator, critic, noise_dim, data_dim) #TODO
+    GAN = get_GAN(generator, critic, noise_dim, data_dim)
     generator.compile(loss='mse', optimizer=RMSprop())
     critic.trainable = False
     GAN.compile(loss=wassertein_distance, optimizer=RMSprop())
@@ -109,8 +118,26 @@ def train_wgan(generator, critic, noise_dim, data_dim, nbEpochs, nbBatchPerEpoch
                                             ("Loss_G", -gen_loss)])
         print('\nEpoch %s/%s, Time: %s' % (i_epoch + 1, nbEpochs, time.time() - start))
 
-noise_dim = (10,)
-data_dim = 10
-generator = mlp_generator(noise_dim, data_dim)
-critic = mlp_critic(data_dim)
-train_wgan(generator, critic, noise_dim, data_dim, 2, 300, 32, 5)
+if __name__=="__main__":
+    parser = argparse.ArgumentParser(description='Train model')
+    parser.add_argument('--train', action='store_true', help="run training phase")
+    parser.add_argument('--noise_dim', default=(10,), type=tuple, help="TODO")
+    parser.add_argument('--data_dim', default=10, type=int, help="TODO")
+    parser.add_argument('--nb_epoch', default=2, type=int, help="Number of epochs")
+    parser.add_argument('--batch_size', default=32, type=int, help='Batch size')
+    parser.add_argument('--n_batch_per_epoch', default=300, type=int, help="Number of batch per epochs")
+    parser.add_argument('--eta_critic', default=5, type=int, help="TODO")
+    args = parser.parse_args()
+
+    noise_dim = (10,)
+    data_dim = 10
+    param_filename = "param"
+    generator = mlp_generator(noise_dim, data_dim)
+    if args.train or not os.path.exists(param_filename):
+        critic = mlp_critic(data_dim)
+        train_wgan(generator, critic, args.noise_dim, args.data_dim, args.nb_epoch, args.n_batch_per_epoch, args.batch_size, args.eta_critic)
+    else:
+        generator.load_weights(param_filename)
+    generator.summary()
+    generator.predict()
+    generator.save_weights(param_filename)
