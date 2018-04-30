@@ -25,11 +25,39 @@
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
 \usepackage[linesnumbered, ruled, vlined]{algorithm2e}
 \usepackage{algorithmic}
+\usepackage{etoolbox}
+
+\patchcmd{\thebibliography}{\chapter*}{\section*}{}{}
+\patchcmd{\thetoc}{\chapter*}{\section*}{}{}
+
+
 
 \titleformat{\chapter}
   {\normalfont\LARGE\bfseries}{\thechapter}{1em}{}
 \titlespacing*{\chapter}{0pt}{3.5ex plus 1ex minus .2ex}{2.3ex plus .2ex}
 
+\newcommand{\G}{\mathcal{G}}
+\newcommand{\D}{\mathcal{D}}
+\newcommand{\X}{\mathcal{X}}
+\newcommand{\W}{\mathcal{W}}
+\newcommand{\Expec}{\mathbb{E}}
+\newcommand{\Prob}{\mathbb{P}}
+\newcommand{\real}{\mathbb{R}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+
+\theoremstyle{plain}
+\newtheorem{thm}{Theorem}
+\newtheorem{prop}{Proposition}
+\newtheorem{corol}{Corollary}
+
+\theoremstyle{remark}
+\newtheorem*{rem}{Remarque}
+\newtheorem*{note}{Note}
+
+\theoremstyle{definition}
+\newtheorem{defi}{Definition}
 
 \begin{document}
 
@@ -45,45 +73,288 @@
 	\href{mailto:louis.bethune@ens-lyon.fr}{louis.bethune@ens-lyon.fr}\\
     \vspace{0.2cm}
 	\href{mailto:guillaume.coiffier@ens-lyon.fr}{guillaume.coiffier@ens-lyon.fr}\\
-	\vspace{0.2cm}
-	\href{mailto:leonard.assouline@ens-lyon.fr}{leonard.assouline@ens-lyon.fr}\\
 }
 \vspace{2cm}
 \vfill
 \end{center}
 \end{titlepage}
 
+\chapter*{Introduction}
 
+The theoretical work of this report is supported by the articles \cite{goodfellow2014generative}, \cite{arjovsky2017wasserstein} and \cite{gulrajani2017improved}.
 
+In \cite{goodfellow2014generative}, we found the original concept and definition of a generative adversarial network, and some basic results about the training.
+
+In \cite{arjovsky2017wasserstein} can be found the definition of Wasserstein GAN, along some nice properties of these networks.
+
+Finally, \cite{gulrajani2017improved} describes an improved method for training Wasserstein GAN.
+
+We gave no rigourous proofs of the theorems we exposed. The proofs can be found in their respective articles.
+
+Our experimental work is given with this report. It is an implemention of the WGAN training algorithm using Python and the Keras library.
 
 \setcounter{tocdepth}{1}
 \tableofcontents
 
+\chapter{Generative Adversarial Networks}
 
+Generative Adversarial Networks (GAN) are a class of unsupervised machine learning algorithm. They often consist of two multi-layer perceptrons contesting with each other in a two-player zero-sum game. They were introduced in 2014 by \textit{Ian Goodfellow et al.} in \cite{goodfellow2014generative}.
 
+\section{Principle of GANs}
 
+One neural network is the generator $\G$. Its goal is to learn a probability distribution $\Prob_r$.
 
-\chapter*{Introduction}
+The other network is the discriminator $\D$, deciding if its input comes from $\G$'s output or from training examples following $\Prob_r$ : $\D_(x)$ will be the probability that x comes from the data and not from $\G$. We train $\D$ in order to maximize the probability of correctly labelling both training examples and outputs of $\G$.
 
-\lipsum
+Parameters of $\G$ will be denoted as $\theta$. Parameters of $\D$ will be denoted as $\omega$.
+The probability density output by $\G$ will then be called $\Prob_\theta$.
 
-\chapter{Theory of Generative Adversarial Networks}
+When given a set of m training examples ${x^{(i)}}$ distributed according to $\Prob_r$, we want $\G$ to follow the distribution $\Prob_{\theta}$ that maximizes the likelihood of our data, that is to say :
 
-\section{Generative Adversarial Networks}
-\lipsum[1]
+\begin{equation}
+\label{eq:orig_problem}
+\max_{\theta \in \real^d} \, \frac{1}{m} \sum_{i=1}^{m}{\log( \Prob_{\theta}(x^{(i)})}
+\end{equation}
+If both distributions admit a probability density, then this amount will assymptotically minimize the KL divergence $KL( \Prob_{\theta} || \Prob_r)$ (defined below in \ref{eq:KL}). However, it is unlikely in general that $\Prob_\theta$ admits a density, which leads to an undefined or infinite KL divergence. The typical solution to paliate this problem is to define a noise distribution $\Prob_z$. Rather than estimating $\Prob_r$ by a probability distribution $\Prob_{\theta}$ which does not have a density in general, we define a parametrized function $g_{\theta} : \mathcal{Z} \rightarrow \X$ fed with $ z \sim \Prob_z$. This function $g_{\theta}$ is what the generator network $\G$ will compute, so that $\Prob_\theta = g_\theta(\Prob_z)$.
 
-\section{The problem of learning}
+Simultaneously, we want $\D$ to be a "good" discriminator. $\D$ will represent a function $f_\omega$ that must minimize the quantity $\log(1-f_{\omega}( g_{\theta}(z))$ for $z \sim \Prob_z$. 
+
+In other words, $\G$ and $\D$ can be seen as two players playing the minmax of value function $V(\G,\D)$ :
+
+\begin{equation}
+\label{eq:zero_sum_game}
+\min_{\G} \max_{\D} \, V(\G,\D) = \Expec_{x \sim \Prob_r}[\log(f_\omega(x))] + \Expec_{z \sim \Prob_z}[\log(1 - f_\omega(g_\theta(z)))]
+\end{equation}
+
+\section{GAN's training}
+\label{sec:vanish}
+Training GAN is however considered as a hard task and is quite unstable. The main problem is that updates of the generator are getting worse and worse, although the result has clearly not converged to its optimal. The explanation lays within the gradient that is used to update $\G$. In practice, since the discriminator is trained faster than the generator, the generator's gradient tends to have very small values very quickly, which makes the update harder and longer.
+
+This phenomenom is well known since the work of \cite{arjovsky2017towards}. the following theorem illustrates what happens :
+
+\begin{thm}
+Let $g_\theta : \mathcal{Z} \rightarrow \X$ be a differentiable function that induces  a  distribution $\Prob_\theta$. Let $\Prob_r$ be  the  real  data  distribution. Let $\D$ be a differentiable discriminator.  If the conditions of Theorems 2.1 or 2.2 are satisfied, $||\D - \D^*|| < \varepsilon$ and $\Expec_{z \sim \Prob_z}[ ||J_\theta g_\theta(z))||^2_2] \leqslant M^2$, then :
+
+$$ || \nabla_\theta \Expec_{z \sim \Prob_z} [log(1- f_w(g_\theta(z)))] ||_2  < M \frac{\varepsilon}{1-\varepsilon}$$ 
+\end{thm}
+
+In other words, under some assumptions described in \cite{arjovsky2017wasserstein}, if $\D^*$ is the optimal discriminator, the closer we get from $\D^*$, the smaller the gradient of $\G$, so the smaller the improvement.
+
+\chapter{Wassertein GAN}
+
+Wasserstein GAN (WGAN) are an improvement of the original GAN method. It especially makes the training of the networks easier. The key idea of WGAN is to change the way we measure distances between probability distributions. Instead of the KL divergence, we instead use the Earth-mover distance, which is defined below (in \ref{eq:EM}).
+
+\section{How to measure distances between probability distributions}
+
+Selectionning a distance $\rho$ between probability distributions is the heart of the GAN framework. Different distances may indeed induce different behavior for convergence of distribution sequences.
+
+In the WGAN framework, we want to define $\Prob_\theta$ such that the mapping $\theta \rightarrow \Prob_\theta$ is continuous. The weaker the distance, the easier it will be. This is important, because we want to have a loss function of form $\theta \rightarrow \rho(\Prob_\theta, \Prob_r)$, which will then be continuous.
+
+Let $\X$ be a \textbf{compact} metric set. Let $\Sigma$ be the set of all Borel subsets of $\X$ and $Prob(\X)$ be the set of posible probability measures over $\X$.
+
+Let $\Prob_1 , \Prob_2 \in Prob(\X)$. We define the following distances :
+
+\paragraph{The Total variation (TV) distance}
+\begin{equation}
+\label{eq:TV}
+\delta(\Prob_1,\Prob_2) = \sup_{A \in \Sigma} |\Prob_1(A) - \Prob_2(A)|
+\end{equation}
+
+\paragraph{The Kullback-Leibler (KL) divergence}
+\begin{equation}
+\label{eq:KL}
+KL(\Prob_1 || \Prob_2) = \int{ \log \left( \frac{\Prob_1(x)}{\Prob_2(x)} \right) \Prob_1(x) d\mu x}
+\end{equation}
+Where both probabilities are assumed to admit densities with respect to the same measure $\mu$ over $\X$.
+
+\paragraph{The Jensen-Shannon (JS) divergence}
+\begin{equation}
+\label{eq:JS}
+JS(\Prob_1 , \Prob_2) = KL(\Prob_1 || \Prob_m) + KL(\Prob_2 || \Prob_m)
+\end{equation}
+where $\Prob_m = 1/2 (\Prob_1 + \Prob_2)$.
+
+\paragraph{The Earth-Mover (EM) distance, or Wassertein-1 distance}
+\begin{equation}
+\label{eq:EM}
+W(\Prob_1, \Prob_2) = \inf_{\gamma \in \Pi(\Prob_1,\Prob_2)} \Expec_{(x,y) \sim \gamma}[ ||x-y||]
+\end{equation}
+where $\Pi(\Prob_1,\Prob_2)$ is the set of all joint distributions $\gamma$ whose marginal distributions are $\Prob_1$ and $\Prob_2$. Informly, the EM distance indicates how much "mass" should be moved in order to change $\Prob_1$ in $\Prob_2$ (hence the name). It is the "cost" of the optimal transport.
+
+\section{The Earth-Mover distance and its properties}
+
+WGAN uses a distance which is an approximation of the EM distance (see \ref{eq:EM}).
+It is interresting to see that some apparently simple sequences of probability distributions converge under the EM distance, but not using the other distances defined above. Examples are given in \cite{arjovsky2017wasserstein}.
+
+Moreover, udner reasonable assumptions, the loss function $\theta \rightarrow W(\Prob_\theta , \Prob_r)$ is continuous and differentiable almost everywhere.
+
+\begin{defi}
+Let $g : \mathcal{Z}\times\real^d \rightarrow \X$ be a locally Lipschitz function, denoted by $g_\theta(z)$ with z the first coordinate and $\theta$ the second. We say that $g$ satisfies assumption (*) for a certain distribution $\Prob$ over $\mathcal{Z}$ if there are local Lipschitz constant $L(\theta,z)$ such that :
+$$\Expec_{z \sim \Prob}[L(\theta,z)] < \infty$$ 
+\end{defi}
+
+\begin{thm}{Continuity of the Wassertein distance (from \cite{arjovsky2017wasserstein})}
+Let $\Prob_r$ be a fixed probability distribution over $\X$. Let Z be a random variable over space $\mathcal{Z}$. Let $g : \mathcal{Z}\times\real^d \rightarrow \X$ a function. Let $\Prob_\theta = g_\theta(Z)$. Then :
+
+\begin{enumerate}
+\item If g is continuous in $\theta$, so is $W(\Prob_r, \Prob_\theta)$.
+\item If g is locally Lipschitz and satisfies assumption (*), then $W(\Prob_r , \Prob_\theta)$
+is continuous everywhere, and differentiable almost everywhere.
+\item Statements 1 and 2 are false for the JS divergence and the KL divergence.
+\end{enumerate}
+\end{thm}
+
+This theorem also implies the following corollary :
+\begin{corol}
+Let $g_\theta$ be any feedforward neural network with parameters $\theta$, and let $\Prob_z$
+be a prior over $\mathcal{Z}$ such that $\Expec_{z \sim \Prob_z}[||z||] < \infty$.
+Then $g_\theta$ satisfies assumption (*) and therefore $W(\Prob_r , \Prob_\theta)$ is continuous everywhere and differentiable almost everywhere.
+\end{corol}
+
+In other words, the EM distance has good properties for our framework, which other distances don't have. The EM distance can be used as a sensible loss function in the context of GAN training.
+
+\section{Training of WGAN}
+
+We saw that WGAN use the EM distance as a loss function. However, even though this distance has good mathematical properties, its minimum is still hard to find. Thanks to the optimal transport theory and the Kantorovitch-Rubinstein duality (see \cite{villani2008optimal} for further information), we have :
+
+\begin{equation}
+\label{eq:WGANprob}
+W(\Prob_r , \Prob_\theta) = \sup_{f : ||f||_L \leqslant 1} \Expec_{x \sim \Prob_r}[f(x)] - \Expec_{x \sim \Prob_\theta} [f(x)]
+\end{equation}
+
+ 
+ where the supremum is over all the 1-Lipschitz functions from $\X$ to $\real$. Rewriting $x \sim \Prob_\theta$ as the output of the generator network $\G$ and parametrizing the function f as $f_\omega$, the training consists in solving the following problem :
+ 
+\begin{equation}
+\label{eq:WGAN}
+ \min_{\G : \theta} \; \max_{\D : \omega} \; \Expec_{x \sim \Prob_r} [f_w(x)] - \Expec_{z \sim \Prob_z} [f_w(g_\theta(z))]
+\end{equation}
+
+This problem looks very similar to the initial GAN problem of equation \ref{eq:orig_problem}. However, the function $f_w$ has to be found among the 1-Lipschitz functions. Morever, the logarithms, which were intrinsic to the KL divergence, have dissapeared.
+
+It turns out that this problem admits a solution :
+
+\begin{thm}
+\label{thm:exist_opt}
+Let $\Prob_r$ be any distribution, and $\Prob_\theta$ be the distribution of $g_\theta(Z)$ with Z some noise variable. Assume that $g_\theta$ satisfies assumption (*). Then :
 \begin{itemize}
-    \item discontinuity of norms
-    \item vanishing gradients
+\item There is a solution $f$ to the problem \ref{eq:WGANprob} (ie, the supremum is actually a maximum)
+\item $\nabla_\theta W(\Prob_r, \Prob_\theta) = - \Expec_{z \sim \Prob_z}[\nabla f(g_\theta(z))]$
+\end{itemize}
+\end{thm}
+
+From there comes the idea of a discriminator network $\D$ learning the parametrized function $f_w$ approximating f, while the generator networks learns function $g_\theta$. We assume that the $\omega$ are in a compact space $\W$. To optimize $f_\omega$, we do a back propagation over $\Expec_{z \sim \Prob_z}[\nabla f(g_\theta(z))]$, as in a classical GAN.
+However, this does not ensure that the weights stay in a compact space. To cope with this, we clip the parameters $\omega$ so they stay in a fixed box of $\real^d$ (for example, $\W = [-0.1,0.1]^d$). The training algorithm is then the following :
+
+\begin{center}
+	\includegraphics[width=\textwidth]{algo1.png} \\
+	\label{alg:1}
+    \emph{The training algorithm proposed in \cite{arjovsky2017wasserstein}}
+\end{center} 
+
+Notice that the discriminator $\D$ (here denoted by \emph{critic}) makes $n_{critic}$ loops of training while the generator $\G$ makes only one. This is made so that the discriminator stays at its optimal solution while the generator slowly improves itself.
+
+The update algorithm used in RMSProp (Root Mean Square Propagation). It is an improved version of the stochastic gradient descent algorithm. The idea is to divide the learning rate for a weight by a running average of the magnitudes of recent gradients for that weight. For further information, see \cite{tieleman2012lecture}.
+
+In practice, one has a different stopping condition than "$\theta$ has converged". In our own experiment (see chapter \ref{chap:exp}), we trained the network on a fixed number of epochs. In each epochs were given a fixed number of batchs of examples to the WGAN.
+
+Note that the EM distance does not suffer from the vanishing gradient problem (as defined above in \ref{sec:vanish}). The theorem, proved in \cite{gulrajani2017improved}, is the following :
+
+\begin{thm}
+\label{thm:norm1}
+Let $\Prob_r$ and $\Prob_g$ be two distributions over a compact metric space $\X$. Let $f^*$ be the optimal solution of equation \ref{eq:WGANprob} (existence of $f^*$ is ensured by theorem \ref{thm:exist_opt}). Let $\pi$ be the optimal coupling between $\Prob_r$ and $\Prob_g$, that is to say $$\pi = \argmin W(\Prob_r, \Prob_g) \;=\; \argmin_{\gamma \in \Pi(\Prob_r,\Prob_g)} \Expec_{(x,y) \sim \gamma}[ ||x-y|| ]$$ Then, if $f^*$ is differentiable and $\pi (x = y) = 0$, 
+let $x_t = tx + (1-t)y$ with $0 \leqslant t \leqslant 1$. It holds that :
+$$ \Prob_{(x,y) \sim \pi} \left( \nabla f^*(x_t) = \frac{y - x_t}{||y - x_t ||} \right) = 1 $$
+\end{thm}
+\begin{corol}
+$f*$ has gradient norm 1 almost everywhere under $\Prob_r$ and $\Prob_g$
+\end{corol}
+
+This ensures that the gradient of the discriminator function does not tend to zero as we get closer from the optimal solution (by a continuity argument).
+
+Thanks to this result, we know that WGAN can be trained more easily than classical GANs. Moreover, the model is less sensible to the network's architecture, and it is not required anymore to maintain a very precise balance between $\D$ and $\G$'s results.
+
+\chapter{Improved Wassertein GAN}
+
+Although the clipping idea and the whole WGAN framework improved the training of generative adversarial networks, it still causes some issues. In \cite{gulrajani2017improved} are described some problems caused by the weight clipping operation of the discriminator $\D$. Another solution, called gradient penalty, is also proposed.
+
+\section{Instability due to clipping}
+
+Clipping can lead to optimization issues too. In the following pictures is compared the norm of the gradients for several values of the hyper parameter $c$, which is the clipping threshold (values are kepts in $[-c,c]^d$).
+
+\begin{center}
+\label{fig:1}
+	\includegraphics[width=0.7\textwidth]{clipping.png} \\
+    \emph{\textsc{Figure 1 :} Some comparative results between clipping and gradient penalty (from \cite{gulrajani2017improved})}
+\end{center} 
+
+We can see that depending of the value of $c$, the gradient norm can go to zero, or diverge. Since the clipping forces the value to stay in a certain interval, we have a saturation of the norm of the gradient around c. As we can see on the top-right figure, the gradient norm tends to have only two values, 0 and c.
+
+Such problems are not encountered with the gradient penalty algorithm. Gradient norm have a nice distribution, and we do not suffer from saturation.
+
+Figure 2 show results of training WGAN on toy examples, using (top) weight clipping
+and (bottom) gradient penalty. Critics trained with weight clipping fail to capture higher moments of the data distribution. In fact, clipping the weights to ensure that the function is Lipschitz tends bias the discriminator to simpler functions. We only get simplified approximation of the optimal solution.
+
+\begin{center}
+	\includegraphics[width=0.7\textwidth]{toy.png} \\
+    \emph{\textsc{Figure 2 :} Comparison of results of clipping and gradient penalty algorithms on the quality of outcome (from \cite{gulrajani2017improved})}
+\end{center} 
+
+\section{The Gradient Penalty WGAN}
+
+Gradient penalty is an alternative way of enforcing the Lipschitz constraint. We get rid of the hyperparameter c, which does not have to be carefully tuned anymore.
+A differentiable function is 1-Lipschtiz if and only if it has gradients with norm at most 1 everywhere, so we consider directly constraining the gradient norm of the critic’s output with respect to its input.
+For a random sample $z \sim \Prob_z$, the new objective function is :
+
+\begin{equation}
+\label{eq:grad_pen}
+\Expec_{x \sim \Prob_r} [f_w(x)] - \Expec_{z \sim \Prob_z} [f_w(g_\theta(z))] + \lambda
+ \Expec_{\hat{x} \sim \Prob_{\hat{x}}} [ (||\nabla_{\hat{x}} f_w(\hat{x})||_2 -1)^2] 
+\end{equation}
+
+where the term $\lambda
+ \Expec_{\hat{x} \sim \Prob_{\hat{x}}} [ (||\nabla_{\hat{x}} f_w(\hat{x})||_2 -1)^2]$ is the gradient penalty, which is added to the original objective function (\ref{eq:WGAN})
+
+The coefficient $\lambda$ is a new hyperparameter, called the \textit{penalty coefficient}.
+
+The law $\Prob_{\hat{x}}$ is a convex combination of the data distribution $\Prob_r$ and the generator distribution $\Prob_\theta$. This is motivated by the fact that the optimal critic $f^*$ contains straight lines with gradient norm 1 connecting coupled points from $\Prob_r$ and $\Prob_\theta$ (see \ref{thm:norm1})
+
+This new objective function leads to the following algorithm :
+
+\begin{center}
+	\label{alg:2}
+	\includegraphics[width=\textwidth]{algo2.png} \\
+    \emph{The improved training algorithm proposed in \cite{gulrajani2017improved}}
+\end{center}
+
+Notice that this algorithm has a very similar structure than the algorithm given in \ref{alg:1}.
+The two main differences are the sampling of a mixed data from $\varepsilon \Prob_r + (1-\varepsilon) \Prob_\theta$ with a uniformly random $\varepsilon$, and the regression algorithm.
+
+Unlike algorithm \ref{alg:1} which uses RMSProp, this algorithm uses the Adam (Adaptive Moment Estimation) algorithm to backpropagate.
+
+\chapter{Experimental results}
+\label{chap:exp}
+
+\section{Global presentation}
+
+Due to our lack of computation power, we were not able to train a WGAN to generate large pictures. Instead, we tried to learn gaussian laws in 1D. More precisely :
+
+\begin{itemize}
+\item $\Prob_r = \mathcal{N}(2,1)$
+\item $\Prob_z = \mathcal{U}([0,5])$
 \end{itemize}
 
-\section{Wassertein GAN}
-\lipsum[1]
+The program was written in python, using Keras. Both our generator $\G$ and discriminator $\D$ have two hidden layers of 128 neurons.
 
-\chapter{Applications}
-\lipsum
+We did not implement the GP-WGAN algorithm, as we lack the time to set it up.
 
+\section{Results and encountered problems}
+
+
+
+\chapter*{Conclusion}
+
+WGAN are an improvement of the GAN framework. The modified objective function used in the WGAN is based on the Earth-Mover distance, and not on the Jensen-Shannon divergence. This allow more stability in the training process. However, this distance require the discriminating function to be k-Lipschitz. The method used to enforce this condition is weight clipping, and it has been show in \cite{gulrajani2017improved} that this method lead to simplified functions and results that are not satisfying in practice. The same article proposed the WGAN-GP algorithm, which use the gradient penalty method instead of weight clipping. The WGAN-GP is currently the state of the art in the GAN framework.
 
 \nocite{*}
 \bibliographystyle{unsrt}
