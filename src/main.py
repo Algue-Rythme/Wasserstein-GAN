@@ -63,10 +63,10 @@ def mlp_generator(noise_dim, data_dim, name='mlp_generator'):
     """
 
     model = Sequential(name=name)
-    model.add(Dense(128, input_shape=noise_dim, activation='tanh'))
+    model.add(Dense(64, input_shape=noise_dim, activation='tanh'))
     model.add(LeakyReLU())
     model.add(BatchNormalization())
-    model.add(Dense(128, activation='tanh'))
+    model.add(Dense(64, activation='tanh'))
     model.add(LeakyReLU())
     model.add(Dense(data_dim, activation='linear'))
     return model
@@ -77,9 +77,9 @@ def mlp_critic(data_dim, name='mlp_critic'):
     output either +1 (res. -1) if the example is fake (res. real)
     """
     model = Sequential(name=name)
-    model.add(Dense(128, input_dim=data_dim, activation='tanh'))
+    model.add(Dense(64, input_dim=data_dim, activation='tanh'))
     model.add(LeakyReLU())
-    model.add(Dense(128, activation='tanh'))
+    model.add(Dense(64, activation='tanh'))
     model.add(LeakyReLU())
     model.add(Dense(1, activation='linear'))
     return model
@@ -146,7 +146,7 @@ if __name__=="__main__":
     parser.add_argument('--batch_size', '-b', default=64, type=int, help='Batch size')
     parser.add_argument('--n_batch_per_epoch', '-nb', default=1024, type=int, help="Number of batch per epochs")
     parser.add_argument('--eta_critic', default=5, type=int, help="Number of iterations of discriminator per iteration of generator")
-    parser.add_argument('--clipping', '-c', default=0.01, type=float, help="")
+    parser.add_argument('--clipping', '-c', default=0.05, type=float, help="")
     args = parser.parse_args()
 
     noise_dim = (args.noise_dim,)
@@ -160,13 +160,16 @@ if __name__=="__main__":
     generator.summary()
     generator.save_weights(param_filename)
 
-    entry = get_noise(noise_dim, 1000)
+    entry_size = 10000
+    entry = get_noise(noise_dim, entry_size)
     output = generator.predict(entry)
     X = np.linspace(np.min(output), np.max(output),200)
 
     # plotting the result
     m,s = np.mean(output), np.std(output)
-    plt.hist(output.reshape(noise_dim[0]*1000), normed=True)
+    print("Mean :", m)
+    print("Standard deviation :", s)
+    plt.hist(output.reshape(noise_dim[0]*entry_size), normed=True)
     plt.plot(X, 1/(s * np.sqrt(2 * np.pi)) *np.exp( - (X - m)**2 / (2 * s**2) ), linewidth=2, color='r')
 
     # plotting the goal normal law

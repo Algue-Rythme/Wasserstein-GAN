@@ -1,4 +1,4 @@
-\documentclass[a4paper]{report}
+\documentclass[a4paper]{article}
 
 %% Language and font encodings
 \usepackage[english]{babel}
@@ -13,7 +13,7 @@
 \usepackage{lipsum}
 
 %% Sets page size and margins
-\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
+\usepackage[a4paper,top=3cm,bottom=2cm,left=3.5cm,right=3.5cm,marginparwidth=1.75cm]{geometry}
 
 %% Useful packages
 \usepackage{amsmath}
@@ -27,14 +27,12 @@
 \usepackage{algorithmic}
 \usepackage{etoolbox}
 
-\patchcmd{\thebibliography}{\chapter*}{\section*}{}{}
-\patchcmd{\thetoc}{\chapter*}{\section*}{}{}
+\patchcmd{\thebibliography}{\section*}{\section*}{}{}
+\patchcmd{\thetoc}{\section*}{\section*}{}{}
 
-
-
-\titleformat{\chapter}
-  {\normalfont\LARGE\bfseries}{\thechapter}{1em}{}
-\titlespacing*{\chapter}{0pt}{3.5ex plus 1ex minus .2ex}{2.3ex plus .2ex}
+\titleformat{\section}
+  {\normalfont\LARGE\bfseries}{\thesection}{1em}{}
+\titlespacing*{\section}{0pt}{3.5ex plus 1ex minus .2ex}{2.3ex plus .2ex}
 
 \newcommand{\G}{\mathcal{G}}
 \newcommand{\D}{\mathcal{D}}
@@ -45,7 +43,6 @@
 \newcommand{\real}{\mathbb{R}}
 \DeclareMathOperator*{\argmax}{arg\,max}
 \DeclareMathOperator*{\argmin}{arg\,min}
-
 
 \theoremstyle{plain}
 \newtheorem{thm}{Theorem}
@@ -74,12 +71,13 @@
     \vspace{0.2cm}
 	\href{mailto:guillaume.coiffier@ens-lyon.fr}{guillaume.coiffier@ens-lyon.fr}\\
 }
-\vspace{2cm}
-\vfill
+\vspace{3cm}
 \end{center}
+\tableofcontents
+\vfill
 \end{titlepage}
 
-\chapter*{Introduction}
+\section*{Introduction}
 
 The theoretical work of this report is supported by the articles \cite{goodfellow2014generative}, \cite{arjovsky2017wasserstein} and \cite{gulrajani2017improved}.
 
@@ -93,14 +91,11 @@ We gave no rigourous proofs of the theorems we exposed. The proofs can be found 
 
 Our experimental work is given with this report. It is an implemention of the WGAN training algorithm using Python and the Keras library.
 
-\setcounter{tocdepth}{1}
-\tableofcontents
-
-\chapter{Generative Adversarial Networks}
+\section{Generative Adversarial Networks}
 
 Generative Adversarial Networks (GAN) are a class of unsupervised machine learning algorithm. They often consist of two multi-layer perceptrons contesting with each other in a two-player zero-sum game. They were introduced in 2014 by \textit{Ian Goodfellow et al.} in \cite{goodfellow2014generative}.
 
-\section{Principle of GANs}
+\subsection{Principle of GANs}
 
 One neural network is the generator $\G$. Its goal is to learn a probability distribution $\Prob_r$.
 
@@ -126,7 +121,7 @@ In other words, $\G$ and $\D$ can be seen as two players playing the minmax of v
 \min_{\G} \max_{\D} \, V(\G,\D) = \Expec_{x \sim \Prob_r}[\log(f_\omega(x))] + \Expec_{z \sim \Prob_z}[\log(1 - f_\omega(g_\theta(z)))]
 \end{equation}
 
-\section{GAN's training}
+\subsection{GAN's training}
 \label{sec:vanish}
 Training GAN is however considered as a hard task and is quite unstable. The main problem is that updates of the generator are getting worse and worse, although the result has clearly not converged to its optimal. The explanation lays within the gradient that is used to update $\G$. In practice, since the discriminator is trained faster than the generator, the generator's gradient tends to have very small values very quickly, which makes the update harder and longer.
 
@@ -140,11 +135,11 @@ $$ || \nabla_\theta \Expec_{z \sim \Prob_z} [log(1- f_w(g_\theta(z)))] ||_2  < M
 
 In other words, under some assumptions described in \cite{arjovsky2017wasserstein}, if $\D^*$ is the optimal discriminator, the closer we get from $\D^*$, the smaller the gradient of $\G$, so the smaller the improvement.
 
-\chapter{Wassertein GAN}
+\section{Wassertein GAN}
 
 Wasserstein GAN (WGAN) are an improvement of the original GAN method. It especially makes the training of the networks easier. The key idea of WGAN is to change the way we measure distances between probability distributions. Instead of the KL divergence, we instead use the Earth-mover distance, which is defined below (in \ref{eq:EM}).
 
-\section{How to measure distances between probability distributions}
+\subsection{How to measure distances between probability distributions}
 
 Selectionning a distance $\rho$ between probability distributions is the heart of the GAN framework. Different distances may indeed induce different behavior for convergence of distribution sequences.
 
@@ -181,7 +176,7 @@ W(\Prob_1, \Prob_2) = \inf_{\gamma \in \Pi(\Prob_1,\Prob_2)} \Expec_{(x,y) \sim 
 \end{equation}
 where $\Pi(\Prob_1,\Prob_2)$ is the set of all joint distributions $\gamma$ whose marginal distributions are $\Prob_1$ and $\Prob_2$. Informly, the EM distance indicates how much "mass" should be moved in order to change $\Prob_1$ in $\Prob_2$ (hence the name). It is the "cost" of the optimal transport.
 
-\section{The Earth-Mover distance and its properties}
+\subsection{The Earth-Mover distance and its properties}
 
 WGAN uses a distance which is an approximation of the EM distance (see \ref{eq:EM}).
 It is interresting to see that some apparently simple sequences of probability distributions converge under the EM distance, but not using the other distances defined above. Examples are given in \cite{arjovsky2017wasserstein}.
@@ -193,7 +188,7 @@ Let $g : \mathcal{Z}\times\real^d \rightarrow \X$ be a locally Lipschitz functio
 $$\Expec_{z \sim \Prob}[L(\theta,z)] < \infty$$ 
 \end{defi}
 
-\begin{thm}{Continuity of the Wassertein distance (from \cite{arjovsky2017wasserstein})}
+\begin{thm}{Continuity of the Wasserstein distance (from \cite{arjovsky2017wasserstein})}
 Let $\Prob_r$ be a fixed probability distribution over $\X$. Let Z be a random variable over space $\mathcal{Z}$. Let $g : \mathcal{Z}\times\real^d \rightarrow \X$ a function. Let $\Prob_\theta = g_\theta(Z)$. Then :
 
 \begin{enumerate}
@@ -213,7 +208,7 @@ Then $g_\theta$ satisfies assumption (*) and therefore $W(\Prob_r , \Prob_\theta
 
 In other words, the EM distance has good properties for our framework, which other distances don't have. The EM distance can be used as a sensible loss function in the context of GAN training.
 
-\section{Training of WGAN}
+\subsection{Training of WGAN}
 
 We saw that WGAN use the EM distance as a loss function. However, even though this distance has good mathematical properties, its minimum is still hard to find. Thanks to the optimal transport theory and the Kantorovitch-Rubinstein duality (see \cite{villani2008optimal} for further information), we have :
 
@@ -256,7 +251,7 @@ Notice that the discriminator $\D$ (here denoted by \emph{critic}) makes $n_{cri
 
 The update algorithm used in RMSProp (Root Mean Square Propagation). It is an improved version of the stochastic gradient descent algorithm. The idea is to divide the learning rate for a weight by a running average of the magnitudes of recent gradients for that weight. For further information, see \cite{tieleman2012lecture}.
 
-In practice, one has a different stopping condition than "$\theta$ has converged". In our own experiment (see chapter \ref{chap:exp}), we trained the network on a fixed number of epochs. In each epochs were given a fixed number of batchs of examples to the WGAN.
+In practice, one has a different stopping condition than "$\theta$ has converged". In our own experiment (see section \ref{chap:exp}), we trained the network on a fixed number of epochs. In each epochs were given a fixed number of batchs of examples to the WGAN.
 
 Note that the EM distance does not suffer from the vanishing gradient problem (as defined above in \ref{sec:vanish}). The theorem, proved in \cite{gulrajani2017improved}, is the following :
 
@@ -274,11 +269,11 @@ This ensures that the gradient of the discriminator function does not tend to ze
 
 Thanks to this result, we know that WGAN can be trained more easily than classical GANs. Moreover, the model is less sensible to the network's architecture, and it is not required anymore to maintain a very precise balance between $\D$ and $\G$'s results.
 
-\chapter{Improved Wassertein GAN}
+\section{Improved Wassertein GAN}
 
 Although the clipping idea and the whole WGAN framework improved the training of generative adversarial networks, it still causes some issues. In \cite{gulrajani2017improved} are described some problems caused by the weight clipping operation of the discriminator $\D$. Another solution, called gradient penalty, is also proposed.
 
-\section{Instability due to clipping}
+\subsection{Instability due to clipping}
 
 Clipping can lead to optimization issues too. In the following pictures is compared the norm of the gradients for several values of the hyper parameter $c$, which is the clipping threshold (values are kepts in $[-c,c]^d$).
 
@@ -300,7 +295,7 @@ and (bottom) gradient penalty. Critics trained with weight clipping fail to capt
     \emph{\textsc{Figure 2 :} Comparison of results of clipping and gradient penalty algorithms on the quality of outcome (from \cite{gulrajani2017improved})}
 \end{center} 
 
-\section{The Gradient Penalty WGAN}
+\subsection{The Gradient Penalty WGAN}
 
 Gradient penalty is an alternative way of enforcing the Lipschitz constraint. We get rid of the hyperparameter c, which does not have to be carefully tuned anymore.
 A differentiable function is 1-Lipschtiz if and only if it has gradients with norm at most 1 everywhere, so we consider directly constraining the gradient norm of the critic’s output with respect to its input.
@@ -332,10 +327,10 @@ The two main differences are the sampling of a mixed data from $\varepsilon \Pro
 
 Unlike algorithm \ref{alg:1} which uses RMSProp, this algorithm uses the Adam (Adaptive Moment Estimation) algorithm to backpropagate.
 
-\chapter{Experimental results}
+\section{Experimental results}
 \label{chap:exp}
 
-\section{Global presentation}
+\subsection{Global presentation}
 
 Due to our lack of computation power, we were not able to train a WGAN to generate large pictures. Instead, we tried to learn gaussian laws in 1D. More precisely :
 
@@ -348,11 +343,55 @@ The program was written in python, using Keras. Both our generator $\G$ and disc
 
 We did not implement the GP-WGAN algorithm, as we lack the time to set it up.
 
-\section{Results and encountered problems}
+\subsection{How to use the program}
 
+Place yourself in the \emph{src} folder and run \texttt{python3 main.py} or \texttt{./main.py}
 
+Several parameters can be tuned from the command line :
+\begin{description}
+\item[--help, -h] show this help message and exit
+\item[--train, -t] Run training phase. If this parameter is missing, we load the network's parameters from a file.
+\item[--noise\_dim NOISE\_DIM, -nd NOISE\_DIM] dimension of the noise input (number of numbers picked from the same uniform distribution)
+\item[--data\_dim DATA\_DIM, -dd DATA\_DIM] dimension of the data input (number of numbers picked from the same gaussian distribution)
+\item[--nb\_epoch NB\_EPOCH, -n NB\_EPOCH] Number of epochs
+\item[--batch\_size BATCH\_SIZE, -b BATCH\_SIZE] Size of one batch
+\item[--n\_batch\_per\_epoch N\_BATCH\_PER\_EPOCH, -nb N\_BATCH\_PER\_EPOCH] Number of batch per epochs
+\item[--eta\_critic ETA\_CRITIC] Number of iterations of discriminator per iteration of generator
+\item[--clipping CLIPPING, -c CLIPPING] Clipping threshold
+\end{description}
 
-\chapter*{Conclusion}
+\subsection{Results and encountered problems}
+
+We plotted the results of our WGAN as follow : we gathered 10 000 outputs of the generator, and we plotted them as an histogram.
+
+In red is represented the normal law of same mean and standard variation as our distribution. \\
+In green is the targeted gaussian.
+
+Experiment have been lead for different values of the clipping parameters, and number of epochs (which directly determined the length of the training).
+
+\begin{center}
+	\includegraphics[width=\textwidth]{2neurons.png} \\
+    \emph{WGAN test with only two neurons as an hidden layer. 32 epochs of 1024 batchs. C=0.01}
+\end{center}
+We can see here that 2 neurons per layer is clearly not sufficient for the generator to have correct results.
+
+\begin{center}
+	\includegraphics[width=\textwidth]{16epochsof1024.png} \\
+    \emph{16 epochs of 1024 batchs, C=0.01}
+\end{center}
+
+\begin{center}
+	\includegraphics[width=\textwidth]{32epochsof1024.png} \\
+    \emph{32 epochs of 1024 batchs, C=0.01}
+\end{center}
+
+\begin{center}
+	\includegraphics[width=\textwidth]{} \\
+    \emph{}
+\end{center}
+
+\pagebreak
+\section*{Conclusion}
 
 WGAN are an improvement of the GAN framework. The modified objective function used in the WGAN is based on the Earth-Mover distance, and not on the Jensen-Shannon divergence. This allow more stability in the training process. However, this distance require the discriminating function to be k-Lipschitz. The method used to enforce this condition is weight clipping, and it has been show in \cite{gulrajani2017improved} that this method lead to simplified functions and results that are not satisfying in practice. The same article proposed the WGAN-GP algorithm, which use the gradient penalty method instead of weight clipping. The WGAN-GP is currently the state of the art in the GAN framework.
 
